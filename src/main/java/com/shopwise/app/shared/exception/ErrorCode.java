@@ -14,6 +14,7 @@ public enum ErrorCode {
 	VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "Request validation failed"),
 	MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, "Malformed JSON request body"),
 	INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "Invalid request parameter"),
+	INVALID_REFERENCE(HttpStatus.BAD_REQUEST, "The request references a resource that does not exist"),
 	BAD_REQUEST(HttpStatus.BAD_REQUEST, "Bad request"),
 	UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Authentication is required to access this resource"),
 	FORBIDDEN(HttpStatus.FORBIDDEN, "You are not allowed to perform this operation"),
