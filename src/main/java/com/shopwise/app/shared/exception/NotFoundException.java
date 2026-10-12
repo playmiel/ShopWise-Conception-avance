@@ -1,19 +1,19 @@
 package com.shopwise.app.shared.exception;
 
-public class NotFoundException extends RuntimeException {
+/** Ressource demandee introuvable : traduite en HTTP 404 / RESOURCE_NOT_FOUND. */
+public class NotFoundException extends ApiException {
 
 	private static final long serialVersionUID = 1L;
 
 	public NotFoundException() {
-		super();
+		super(ErrorCode.RESOURCE_NOT_FOUND, null);
 	}
 
 	public NotFoundException(String message) {
-		super(message);
+		super(ErrorCode.RESOURCE_NOT_FOUND, message);
 	}
 
 	public NotFoundException(String message, Throwable cause) {
-		super(message, cause);
+		super(ErrorCode.RESOURCE_NOT_FOUND, message, cause);
 	}
-
 }

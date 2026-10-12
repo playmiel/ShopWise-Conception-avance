@@ -12,7 +12,7 @@ import com.shopwise.app.shared.exception.NotFoundException;
 import com.shopwise.app.catalog.mapper.ProductMapper;
 import com.shopwise.app.catalog.repository.ProductRepository;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
@@ -33,12 +33,14 @@ public class ProductServiceImpl implements ProductService {
         return productMapper.toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public ProductResponse getById(Long id) {
         Product product = productRepository.findById(id)
             .orElseThrow(() -> new NotFoundException("Product not found"));
         return productMapper.toResponse(product);
     }
 
+	@Transactional(readOnly = true)
 	public List<ProductResponse> getAll() {
 	    List<Product> products = productRepository.findAll();
 	    return productMapper.toResponseList(products);
