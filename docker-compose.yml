@@ -1,0 +1,40 @@
+# ShopWise : API + base PostgreSQL.
+#   docker compose up --build        puis   http://localhost:8080
+# Secrets et mots de passe : copier .env.example en .env et les modifier (sinon valeurs de demonstration).
+name: shopwise
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: shopwise
+      POSTGRES_USER: shopwise
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shopwise}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopwise -d shopwise"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    image: shopwise-api:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Profil "demo" : epicerie et 1500 ventes pour alimenter les recommandations (vide = pas de demo)
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/shopwise
+      SPRING_DATASOURCE_USERNAME: shopwise
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-shopwise}
+
+volumes:
+  db-data:

@@ -67,6 +67,8 @@ public class SecurityConfig {
 						// Public : obtention du jeton
 						.requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
 						.requestMatchers("/error").permitAll()
+						// Sonde de sante (Docker, orchestrateur) : publique, ne revele aucune donnee
+						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 						// Lecture : tout utilisateur authentifie
 						.requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole(ADMIN, MERCHANT, VIEWER)
 						// Ventes : commercant ou administrateur
