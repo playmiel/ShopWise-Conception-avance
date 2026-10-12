@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SaleLine.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.sales.entity</a> &gt; <span class="el_source">SaleLine.java</span></div><h1>SaleLine.java</h1><pre class="source lang-java linenums">package com.shopwise.app.sales.entity;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Objects;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
+/**
+ * Ligne de vente : un produit, une quantite et le prix unitaire applique.
+ *
+ * Le produit est reference par son identifiant (cle etrangere en base) et non par une
+ * association JPA vers l'entite Product : le module Ventes ne depend ainsi que de l'API
+ * publique du catalogue (ProductService), pas de son modele de persistance.
+ */
+@Entity
+@Table(name = &quot;SALE_LINES&quot;)
+public class SaleLine {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = &quot;sale_id&quot;, nullable = false)
+	private Sale sale;
+
+	@Column(name = &quot;product_id&quot;, nullable = false)
+	private Long productId;
+
+	@Column(name = &quot;product_name&quot;, nullable = false, length = 100)
+	private String productName;
+
+	@Column(name = &quot;quantity&quot;, nullable = false)
+	private int quantity;
+
+	@Column(name = &quot;unit_price&quot;, nullable = false, precision = 10, scale = 2)
+	private BigDecimal unitPrice;
+
+	@Column(name = &quot;line_total&quot;, nullable = false, precision = 12, scale = 2)
+	private BigDecimal lineTotal;
+
+	/** Reserve a JPA. */
+<span class="fc" id="L52">	protected SaleLine() {</span>
+<span class="fc" id="L53">	}</span>
+
+<span class="fc" id="L55">	SaleLine(Sale sale, Long productId, String productName, int quantity, BigDecimal unitPrice) {</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">		if (quantity &lt;= 0) {</span>
+<span class="fc" id="L57">			throw new IllegalArgumentException(&quot;quantity must be greater than 0&quot;);</span>
+		}
+<span class="pc bpc" id="L59" title="1 of 4 branches missed.">		if (unitPrice == null || unitPrice.signum() &lt; 0) {</span>
+<span class="fc" id="L60">			throw new IllegalArgumentException(&quot;unitPrice must be positive or zero&quot;);</span>
+		}
+<span class="fc" id="L62">		this.sale = Objects.requireNonNull(sale, &quot;sale&quot;);</span>
+<span class="fc" id="L63">		this.productId = Objects.requireNonNull(productId, &quot;productId&quot;);</span>
+<span class="fc" id="L64">		this.productName = Objects.requireNonNull(productName, &quot;productName&quot;);</span>
+<span class="fc" id="L65">		this.quantity = quantity;</span>
+<span class="fc" id="L66">		this.unitPrice = unitPrice.setScale(2, RoundingMode.HALF_UP);</span>
+<span class="fc" id="L67">		this.lineTotal = this.unitPrice.multiply(BigDecimal.valueOf(quantity)).setScale(2, RoundingMode.HALF_UP);</span>
+<span class="fc" id="L68">	}</span>
+
+	public Long getId() {
+<span class="fc" id="L71">		return id;</span>
+	}
+
+	public Long getProductId() {
+<span class="fc" id="L75">		return productId;</span>
+	}
+
+	public String getProductName() {
+<span class="fc" id="L79">		return productName;</span>
+	}
+
+	public int getQuantity() {
+<span class="fc" id="L83">		return quantity;</span>
+	}
+
+	public BigDecimal getUnitPrice() {
+<span class="fc" id="L87">		return unitPrice;</span>
+	}
+
+	public BigDecimal getLineTotal() {
+<span class="fc" id="L91">		return lineTotal;</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,36 @@
+erDiagram
+    PRODUCTS ||--o{ SALE_LINES : "est vendu dans"
+    SALES ||--|{ SALE_LINES : "contient"
+    APP_USERS ||--o{ SALES : "enregistre (created_by = username)"
+
+    PRODUCTS {
+        BIGINT id PK "identite"
+        VARCHAR name "100, NOT NULL"
+        VARCHAR description "500"
+        DECIMAL price "10.2, NOT NULL"
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+    SALES {
+        BIGINT id PK "identite"
+        TIMESTAMP sale_date "NOT NULL, index"
+        DECIMAL total_amount "12.2, NOT NULL, >= 0"
+        VARCHAR created_by "50, auteur (audit)"
+    }
+    SALE_LINES {
+        BIGINT id PK "identite"
+        BIGINT sale_id FK "NOT NULL, ON DELETE CASCADE"
+        BIGINT product_id FK "NOT NULL, index"
+        VARCHAR product_name "100, copie a la vente"
+        INTEGER quantity "NOT NULL, > 0"
+        DECIMAL unit_price "10.2, copie a la vente, >= 0"
+        DECIMAL line_total "12.2, >= 0"
+    }
+    APP_USERS {
+        BIGINT id PK "identite"
+        VARCHAR username UK "50, NOT NULL"
+        VARCHAR password_hash "100, BCrypt"
+        VARCHAR role "ADMIN, MERCHANT, VIEWER"
+        BOOLEAN enabled "NOT NULL"
+        TIMESTAMP created_at "NOT NULL"
+    }

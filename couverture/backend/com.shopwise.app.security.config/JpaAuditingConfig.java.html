@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JpaAuditingConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.security.config</a> &gt; <span class="el_source">JpaAuditingConfig.java</span></div><h1>JpaAuditingConfig.java</h1><pre class="source lang-java linenums">package com.shopwise.app.security.config;
+
+import java.util.Optional;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.domain.AuditorAware;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+/**
+ * Tracabilite (US 5) : les champs @CreatedBy sont renseignes automatiquement avec l'utilisateur
+ * authentifie. Les modules metier n'ont donc aucune dependance vers la securite.
+ */
+@Configuration
+@EnableJpaAuditing(auditorAwareRef = &quot;securityAuditorAware&quot;)
+<span class="fc" id="L19">public class JpaAuditingConfig {</span>
+
+	@Bean
+	AuditorAware&lt;String&gt; securityAuditorAware() {
+<span class="fc" id="L23">		return () -&gt; Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())</span>
+<span class="fc" id="L24">				.filter(Authentication::isAuthenticated)</span>
+<span class="pc bpc" id="L25" title="1 of 2 branches missed.">				.filter(authentication -&gt; !(authentication instanceof AnonymousAuthenticationToken))</span>
+<span class="fc" id="L26">				.map(Authentication::getName);</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Item2VecModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.recommendation.algorithm</a> &gt; <span class="el_source">Item2VecModel.java</span></div><h1>Item2VecModel.java</h1><pre class="source lang-java linenums">package com.shopwise.app.recommendation.algorithm;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import com.shopwise.app.recommendation.config.RecommendationProperties;
+
+/**
+ * Item2Vec : reseau de neurones peu profond (architecture skip-gram de word2vec) applique aux paniers.
+ *
+ * Chaque produit est represente par un vecteur (embedding) de dimension d. Pour chaque paire
+ * (produit cible, produit du meme panier), le reseau apprend a predire que les deux produits
+ * apparaissent ensemble (sortie sigmoide = 1), et que k produits tires au hasard n'y apparaissent
+ * pas (echantillonnage negatif, sortie = 0). La perte d'entropie croisee est minimisee par
+ * descente de gradient stochastique avec un taux d'apprentissage decroissant lineairement.
+ *
+ * Apres entrainement, deux produits souvent achetes ensemble (ou dans des contextes similaires)
+ * ont des vecteurs proches : leur similarite cosinus mesure la complementarite.
+ * L'entrainement est deterministe (graine fixe) pour etre reproductible et testable.
+ */
+public final class Item2VecModel implements Scorer {
+
+	private final Map&lt;Long, double[]&gt; embeddings;
+	private final List&lt;Double&gt; lossHistory;
+	private final int dimensions;
+	private final int trainingPairsPerEpoch;
+
+	private Item2VecModel(Map&lt;Long, double[]&gt; embeddings, List&lt;Double&gt; lossHistory, int dimensions,
+<span class="fc" id="L36">			int trainingPairsPerEpoch) {</span>
+<span class="fc" id="L37">		this.embeddings = embeddings;</span>
+<span class="fc" id="L38">		this.lossHistory = lossHistory;</span>
+<span class="fc" id="L39">		this.dimensions = dimensions;</span>
+<span class="fc" id="L40">		this.trainingPairsPerEpoch = trainingPairsPerEpoch;</span>
+<span class="fc" id="L41">	}</span>
+
+	public static Item2VecModel train(List&lt;List&lt;Long&gt;&gt; baskets, RecommendationProperties.Item2Vec params) {
+<span class="fc" id="L44">		Map&lt;Long, Integer&gt; frequency = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L45">		baskets.forEach(basket -&gt; basket.forEach(id -&gt; frequency.merge(id, 1, Integer::sum)));</span>
+<span class="fc" id="L46">		List&lt;Long&gt; vocabulary = new ArrayList&lt;&gt;(frequency.keySet());</span>
+<span class="fc" id="L47">		Collections.sort(vocabulary);</span>
+<span class="fc" id="L48">		int size = vocabulary.size();</span>
+<span class="fc" id="L49">		int d = params.dimensions();</span>
+<span class="pc bpc" id="L50" title="1 of 4 branches missed.">		if (size &lt; 2 || baskets.isEmpty()) {</span>
+<span class="fc" id="L51">			return new Item2VecModel(Map.of(), List.of(), d, 0);</span>
+		}
+<span class="fc" id="L53">		Map&lt;Long, Integer&gt; index = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">		for (int i = 0; i &lt; size; i++) {</span>
+<span class="fc" id="L55">			index.put(vocabulary.get(i), i);</span>
+		}
+
+<span class="fc" id="L58">		Random random = new Random(params.seed());</span>
+<span class="fc" id="L59">		double[][] input = new double[size][d];   // embeddings appris (couche d'entree)</span>
+<span class="fc" id="L60">		double[][] output = new double[size][d];  // poids de la couche de sortie</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">		for (double[] row : input) {</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">			for (int j = 0; j &lt; d; j++) {</span>
+<span class="fc" id="L63">				row[j] = (random.nextDouble() - 0.5) / d;</span>
+			}
+		}
+
+		// Distribution de tirage des negatifs : frequence^0.75 (lisse la domination des produits tres vendus)
+<span class="fc" id="L68">		double[] cumulative = new double[size];</span>
+<span class="fc" id="L69">		double total = 0;</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">		for (int i = 0; i &lt; size; i++) {</span>
+<span class="fc" id="L71">			total += Math.pow(frequency.get(vocabulary.get(i)), 0.75);</span>
+<span class="fc" id="L72">			cumulative[i] = total;</span>
+		}
+
+<span class="fc" id="L75">		List&lt;int[]&gt; order = new ArrayList&lt;&gt;(baskets.size());</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">		for (List&lt;Long&gt; basket : baskets) {</span>
+<span class="fc" id="L77">			order.add(basket.stream().mapToInt(index::get).toArray());</span>
+<span class="fc" id="L78">		}</span>
+
+<span class="fc" id="L80">		long totalSteps = (long) params.epochs() * order.size();</span>
+<span class="fc" id="L81">		long step = 0;</span>
+<span class="fc" id="L82">		double[] gradient = new double[d];</span>
+<span class="fc" id="L83">		List&lt;Double&gt; losses = new ArrayList&lt;&gt;(params.epochs());</span>
+<span class="fc" id="L84">		int pairsPerEpoch = 0;</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">		for (int epoch = 0; epoch &lt; params.epochs(); epoch++) {</span>
+<span class="fc" id="L86">			Collections.shuffle(order, random);</span>
+<span class="fc" id="L87">			double epochLoss = 0;</span>
+<span class="fc" id="L88">			int pairs = 0;</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">			for (int[] basket : order) {</span>
+<span class="fc" id="L90">				double learningRate = Math.max(params.learningRate() * 1e-4,</span>
+<span class="fc" id="L91">						params.learningRate() * (1.0 - (double) step++ / totalSteps));</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">				for (int target : basket) {</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">					for (int context : basket) {</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">						if (target == context) {</span>
+<span class="fc" id="L95">							continue;</span>
+						}
+<span class="fc" id="L97">						Arrays.fill(gradient, 0);</span>
+<span class="fc" id="L98">						epochLoss += update(input[target], output[context], 1, learningRate, gradient);</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">						for (int k = 0; k &lt; params.negativeSamples(); k++) {</span>
+<span class="fc" id="L100">							int negative = sample(cumulative, total, random);</span>
+<span class="fc bfc" id="L101" title="All 4 branches covered.">							if (negative != context &amp;&amp; negative != target) {</span>
+<span class="fc" id="L102">								epochLoss += update(input[target], output[negative], 0, learningRate, gradient);</span>
+							}
+						}
+<span class="fc bfc" id="L105" title="All 2 branches covered.">						for (int j = 0; j &lt; d; j++) {</span>
+<span class="fc" id="L106">							input[target][j] += gradient[j];</span>
+						}
+<span class="fc" id="L108">						pairs++;</span>
+					}
+				}
+<span class="fc" id="L111">			}</span>
+<span class="fc" id="L112">			losses.add(epochLoss / Math.max(1, pairs));</span>
+<span class="fc" id="L113">			pairsPerEpoch = pairs;</span>
+		}
+
+<span class="fc" id="L116">		Map&lt;Long, double[]&gt; normalized = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">		for (int i = 0; i &lt; size; i++) {</span>
+<span class="fc" id="L118">			double norm = Math.sqrt(Arrays.stream(input[i]).map(v -&gt; v * v).sum());</span>
+<span class="pc bpc" id="L119" title="1 of 2 branches missed.">			if (norm &gt; 0) {</span>
+<span class="fc" id="L120">				double[] vector = new double[d];</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">				for (int j = 0; j &lt; d; j++) {</span>
+<span class="fc" id="L122">					vector[j] = input[i][j] / norm;</span>
+				}
+<span class="fc" id="L124">				normalized.put(vocabulary.get(i), vector);</span>
+			}
+		}
+<span class="fc" id="L127">		return new Item2VecModel(Map.copyOf(normalized), List.copyOf(losses), d, pairsPerEpoch);</span>
+	}
+
+	/** Une etape de descente de gradient sur une paire (sortie sigmoide, perte d'entropie croisee). */
+	private static double update(double[] target, double[] context, int label, double learningRate, double[] gradient) {
+<span class="fc" id="L132">		double dot = 0;</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">		for (int j = 0; j &lt; target.length; j++) {</span>
+<span class="fc" id="L134">			dot += target[j] * context[j];</span>
+		}
+<span class="fc" id="L136">		double prediction = 1.0 / (1.0 + Math.exp(-dot));</span>
+<span class="fc" id="L137">		double g = learningRate * (label - prediction);</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">		for (int j = 0; j &lt; target.length; j++) {</span>
+<span class="fc" id="L139">			gradient[j] += g * context[j];</span>
+<span class="fc" id="L140">			context[j] += g * target[j];</span>
+		}
+<span class="fc bfc" id="L142" title="All 2 branches covered.">		double probability = label == 1 ? prediction : 1.0 - prediction;</span>
+<span class="fc" id="L143">		return -Math.log(Math.max(probability, 1e-10));</span>
+	}
+
+	private static int sample(double[] cumulative, double total, Random random) {
+<span class="fc" id="L147">		int position = Arrays.binarySearch(cumulative, random.nextDouble() * total);</span>
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">		if (position &lt; 0) {</span>
+<span class="fc" id="L149">			position = -position - 1;</span>
+		}
+<span class="fc" id="L151">		return Math.min(position, cumulative.length - 1);</span>
+	}
+
+	/** Similarite cosinus des embeddings, dans [-1, 1] ; 0 si un produit est inconnu du modele. */
+	public double similarity(Long a, Long b) {
+<span class="fc" id="L156">		double[] va = embeddings.get(a);</span>
+<span class="fc" id="L157">		double[] vb = embeddings.get(b);</span>
+<span class="fc bfc" id="L158" title="All 4 branches covered.">		if (va == null || vb == null) {</span>
+<span class="fc" id="L159">			return 0.0;</span>
+		}
+<span class="fc" id="L161">		double dot = 0;</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">		for (int j = 0; j &lt; va.length; j++) {</span>
+<span class="fc" id="L163">			dot += va[j] * vb[j];</span>
+		}
+<span class="fc" id="L165">		return dot;</span>
+	}
+
+	@Override
+	public double score(Collection&lt;Long&gt; seeds, Long candidate) {
+<span class="fc bfc" id="L170" title="All 2 branches covered.">		return seeds.isEmpty() ? 0.0</span>
+<span class="fc" id="L171">				: seeds.stream().mapToDouble(seed -&gt; Math.max(0, similarity(seed, candidate))).average().orElse(0);</span>
+	}
+
+	public List&lt;Double&gt; lossHistory() {
+<span class="fc" id="L175">		return lossHistory;</span>
+	}
+
+	public boolean knows(Long productId) {
+<span class="fc" id="L179">		return embeddings.containsKey(productId);</span>
+	}
+
+	@Override
+	public Map&lt;String, Object&gt; diagnostics() {
+<span class="fc" id="L184">		Map&lt;String, Object&gt; diagnostics = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L185">		diagnostics.put(&quot;dimensions&quot;, dimensions);</span>
+<span class="fc" id="L186">		diagnostics.put(&quot;epochs&quot;, lossHistory.size());</span>
+<span class="fc" id="L187">		diagnostics.put(&quot;vocabularySize&quot;, embeddings.size());</span>
+<span class="fc" id="L188">		diagnostics.put(&quot;trainingPairsPerEpoch&quot;, trainingPairsPerEpoch);</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">		if (!lossHistory.isEmpty()) {</span>
+<span class="fc" id="L190">			diagnostics.put(&quot;initialLoss&quot;, round(lossHistory.get(0)));</span>
+<span class="fc" id="L191">			diagnostics.put(&quot;finalLoss&quot;, round(lossHistory.get(lossHistory.size() - 1)));</span>
+		}
+<span class="fc" id="L193">		return diagnostics;</span>
+	}
+
+	private static double round(double value) {
+<span class="fc" id="L197">		return Math.round(value * 10_000.0) / 10_000.0;</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

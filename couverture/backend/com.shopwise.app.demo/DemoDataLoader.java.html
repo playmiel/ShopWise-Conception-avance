@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DemoDataLoader.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.demo</a> &gt; <span class="el_source">DemoDataLoader.java</span></div><h1>DemoDataLoader.java</h1><pre class="source lang-java linenums">package com.shopwise.app.demo;
+
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.shopwise.app.catalog.entity.Product;
+import com.shopwise.app.catalog.repository.ProductRepository;
+import com.shopwise.app.sales.entity.Sale;
+import com.shopwise.app.sales.repository.SaleRepository;
+
+/**
+ * Profil &quot;demo&quot; : epicerie &quot;Chez Marie&quot; avec un historique de ventes realiste sur 6 mois,
+ * pour que le moteur de recommandation ait des habitudes d'achat a apprendre.
+ *
+ * Les paniers suivent des themes (petit-dejeuner, pates, apero, fromage et vin...) completes
+ * par des achats isoles : le modele doit retrouver ces associations sans les connaitre.
+ * Generation deterministe (graine fixe) ; rien n'est fait si des ventes existent deja.
+ */
+@Component
+@Profile(&quot;demo&quot;)
+@Order(10)
+public class DemoDataLoader implements ApplicationRunner {
+
+<span class="fc" id="L41">	private static final Logger log = LoggerFactory.getLogger(DemoDataLoader.class);</span>
+	static final int SALES = 1500;
+	private static final int DAYS = 180;
+
+	/** nom, description, prix */
+<span class="fc" id="L46">	private static final String[][] PRODUCTS = {</span>
+			{&quot;Baguette tradition&quot;, &quot;Pain frais cuit sur place, farine label rouge&quot;, &quot;1.30&quot;},
+			{&quot;Croissant pur beurre&quot;, &quot;Viennoiserie pur beurre du matin&quot;, &quot;1.20&quot;},
+			{&quot;Beurre doux&quot;, &quot;Beurre doux de Normandie 250 g&quot;, &quot;2.90&quot;},
+			{&quot;Confiture de fraises&quot;, &quot;Confiture extra de fraises 370 g&quot;, &quot;3.40&quot;},
+			{&quot;Cafe moulu arabica&quot;, &quot;Cafe moulu 100 % arabica 250 g&quot;, &quot;4.90&quot;},
+			{&quot;Lait demi-ecreme&quot;, &quot;Lait demi-ecreme UHT 1 L&quot;, &quot;1.15&quot;},
+			{&quot;Spaghetti&quot;, &quot;Pates spaghetti de ble dur 500 g&quot;, &quot;1.60&quot;},
+			{&quot;Sauce tomate basilic&quot;, &quot;Sauce tomate cuisinee au basilic 400 g&quot;, &quot;2.20&quot;},
+			{&quot;Parmesan rape&quot;, &quot;Fromage parmesan rape AOP 100 g&quot;, &quot;3.10&quot;},
+			{&quot;Huile d'olive vierge extra&quot;, &quot;Huile d'olive vierge extra 75 cl&quot;, &quot;8.50&quot;},
+			{&quot;Chips nature&quot;, &quot;Chips de pommes de terre nature 150 g&quot;, &quot;1.90&quot;},
+			{&quot;Olives vertes&quot;, &quot;Olives vertes denoyautees 200 g&quot;, &quot;2.40&quot;},
+			{&quot;Saucisson sec&quot;, &quot;Saucisson sec pur porc 250 g&quot;, &quot;4.80&quot;},
+			{&quot;Biere blonde&quot;, &quot;Biere blonde artisanale 33 cl&quot;, &quot;2.10&quot;},
+			{&quot;Camembert de Normandie&quot;, &quot;Fromage camembert au lait cru AOP 250 g&quot;, &quot;3.90&quot;},
+			{&quot;Vin rouge Bordeaux&quot;, &quot;Vin rouge AOC Bordeaux 75 cl&quot;, &quot;9.90&quot;},
+			{&quot;Pain de campagne&quot;, &quot;Pain de campagne au levain 500 g&quot;, &quot;2.80&quot;},
+			{&quot;Pommes Golden&quot;, &quot;Pommes Golden de France 1 kg&quot;, &quot;2.60&quot;},
+			{&quot;Bananes&quot;, &quot;Bananes Cavendish 1 kg&quot;, &quot;1.99&quot;},
+			{&quot;Yaourt nature&quot;, &quot;Yaourts nature au lait entier 4 x 125 g&quot;, &quot;1.80&quot;},
+			{&quot;Oeufs frais&quot;, &quot;Oeufs frais plein air x 6&quot;, &quot;2.70&quot;},
+			{&quot;Chocolat noir&quot;, &quot;Tablette de chocolat noir 70 % cacao 100 g&quot;, &quot;2.30&quot;},
+			{&quot;Eau minerale&quot;, &quot;Eau minerale naturelle 1,5 L&quot;, &quot;0.65&quot;},
+			{&quot;Riz basmati&quot;, &quot;Riz basmati 1 kg&quot;, &quot;3.20&quot;},
+	};
+
+	/** Themes de paniers : indices dans PRODUCTS et probabilite de choisir le theme. */
+<span class="fc" id="L74">	private static final int[][] THEMES = {</span>
+			{0, 1, 2, 3, 4, 5},  // petit-dejeuner
+			{6, 7, 8, 9},        // pates
+			{10, 11, 12, 13},    // apero
+			{14, 15, 16},        // fromage et vin
+			{17, 18, 19, 20},    // frais et fruits
+	};
+<span class="fc" id="L81">	private static final double[] THEME_WEIGHTS = {0.30, 0.25, 0.20, 0.10, 0.15};</span>
+<span class="fc" id="L82">	private static final int[] MISC = {21, 22, 23};</span>
+
+	private final ProductRepository productRepository;
+	private final SaleRepository saleRepository;
+	private final Clock clock;
+
+<span class="fc" id="L88">	public DemoDataLoader(ProductRepository productRepository, SaleRepository saleRepository, Clock clock) {</span>
+<span class="fc" id="L89">		this.productRepository = productRepository;</span>
+<span class="fc" id="L90">		this.saleRepository = saleRepository;</span>
+<span class="fc" id="L91">		this.clock = clock;</span>
+<span class="fc" id="L92">	}</span>
+
+	@Override
+	@Transactional
+	public void run(ApplicationArguments args) {
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">		if (saleRepository.count() &gt; 0) {</span>
+<span class="nc" id="L98">			log.info(&quot;Demo data skipped: sales already exist&quot;);</span>
+<span class="nc" id="L99">			return;</span>
+		}
+<span class="fc" id="L101">		List&lt;Product&gt; products = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">		for (String[] p : PRODUCTS) {</span>
+<span class="fc" id="L103">			Product product = new Product();</span>
+<span class="fc" id="L104">			product.setName(p[0]);</span>
+<span class="fc" id="L105">			product.setDescription(p[1]);</span>
+<span class="fc" id="L106">			product.setPrice(new BigDecimal(p[2]));</span>
+<span class="fc" id="L107">			products.add(product);</span>
+		}
+<span class="fc" id="L109">		List&lt;Product&gt; saved = productRepository.saveAll(products);</span>
+
+<span class="fc" id="L111">		Random random = new Random(2026);</span>
+<span class="fc" id="L112">		LocalDateTime now = LocalDateTime.now(clock);</span>
+<span class="fc" id="L113">		List&lt;Sale&gt; sales = new ArrayList&lt;&gt;(SALES);</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">		for (int i = 0; i &lt; SALES; i++) {</span>
+			// Plus de ventes recentes que d'anciennes
+<span class="fc" id="L116">			double age = Math.pow(random.nextDouble(), 1.5) * DAYS;</span>
+<span class="fc" id="L117">			Sale sale = new Sale(now.minusMinutes((long) (age * 24 * 60)));</span>
+<span class="fc" id="L118">			Map&lt;Integer, Integer&gt; basket = basket(random);</span>
+<span class="fc" id="L119">			basket.forEach((index, quantity) -&gt; {</span>
+<span class="fc" id="L120">				Product product = saved.get(index);</span>
+<span class="fc" id="L121">				sale.addLine(product.getId(), product.getName(), quantity, product.getPrice());</span>
+<span class="fc" id="L122">			});</span>
+<span class="fc" id="L123">			sales.add(sale);</span>
+		}
+<span class="fc" id="L125">		saleRepository.saveAll(sales);</span>
+<span class="fc" id="L126">		log.info(&quot;Demo data loaded: {} products and {} sales over {} days&quot;, saved.size(), SALES, DAYS);</span>
+<span class="fc" id="L127">	}</span>
+
+	private static Map&lt;Integer, Integer&gt; basket(Random random) {
+<span class="fc" id="L130">		int[] theme = THEMES[pickTheme(random)];</span>
+<span class="fc" id="L131">		Set&lt;Integer&gt; items = new LinkedHashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L132" title="All 2 branches covered.">		for (int index : theme) {</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">			if (random.nextDouble() &lt; 0.65) {</span>
+<span class="fc" id="L134">				items.add(index);</span>
+			}
+		}
+<span class="fc bfc" id="L137" title="All 2 branches covered.">		while (items.size() &lt; 2) {</span>
+<span class="fc" id="L138">			items.add(theme[random.nextInt(theme.length)]);</span>
+		}
+<span class="fc" id="L140">		int extras = random.nextInt(3);</span>
+<span class="fc bfc" id="L141" title="All 2 branches covered.">		for (int e = 0; e &lt; extras; e++) {</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">			items.add(random.nextDouble() &lt; 0.5 ? MISC[random.nextInt(MISC.length)] : random.nextInt(PRODUCTS.length));</span>
+		}
+<span class="fc" id="L144">		Map&lt;Integer, Integer&gt; quantities = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L145">		items.forEach(index -&gt; quantities.put(index, 1 + random.nextInt(3)));</span>
+<span class="fc" id="L146">		return quantities;</span>
+	}
+
+	private static int pickTheme(Random random) {
+<span class="fc" id="L150">		double r = random.nextDouble();</span>
+<span class="fc" id="L151">		double cumulative = 0;</span>
+<span class="pc bpc" id="L152" title="1 of 2 branches missed.">		for (int i = 0; i &lt; THEME_WEIGHTS.length; i++) {</span>
+<span class="fc" id="L153">			cumulative += THEME_WEIGHTS[i];</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">			if (r &lt; cumulative) {</span>
+<span class="fc" id="L155">				return i;</span>
+			}
+		}
+<span class="nc" id="L158">		return THEME_WEIGHTS.length - 1;</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

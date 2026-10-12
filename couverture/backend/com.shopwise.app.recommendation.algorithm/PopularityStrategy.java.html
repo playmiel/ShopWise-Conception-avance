@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PopularityStrategy.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.recommendation.algorithm</a> &gt; <span class="el_source">PopularityStrategy.java</span></div><h1>PopularityStrategy.java</h1><pre class="source lang-java linenums">package com.shopwise.app.recommendation.algorithm;
+
+import java.time.Duration;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.stereotype.Component;
+
+import com.shopwise.app.recommendation.config.RecommendationProperties;
+import com.shopwise.app.recommendation.data.TrainingData;
+
+/**
+ * Meilleures ventes avec decroissance temporelle : chaque article vendu compte pour
+ * quantite x 0.5^(anciennete / demi-vie). Les tendances recentes l'emportent sur l'historique ancien.
+ * Score normalise par le meilleur produit (1.0 = meilleure vente).
+ */
+@Component
+public class PopularityStrategy implements RecommendationStrategy {
+
+	public static final String NAME = &quot;popularity&quot;;
+
+	private final Duration halfLife;
+
+<span class="fc" id="L25">	public PopularityStrategy(RecommendationProperties properties) {</span>
+<span class="fc" id="L26">		this.halfLife = properties.popularity().halfLife();</span>
+<span class="fc" id="L27">	}</span>
+
+	@Override
+	public String name() {
+<span class="fc" id="L31">		return NAME;</span>
+	}
+
+	@Override
+	public String reason() {
+<span class="fc" id="L36">		return &quot;BEST_SELLER&quot;;</span>
+	}
+
+	@Override
+	public Scorer train(TrainingData data) {
+<span class="fc" id="L41">		double halfLifeDays = halfLife.toSeconds() / 86_400.0;</span>
+<span class="fc" id="L42">		Map&lt;Long, Double&gt; raw = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">		for (TrainingData.Basket basket : data.baskets()) {</span>
+<span class="fc" id="L44">			double ageDays = Math.max(0, Duration.between(basket.date(), data.referenceDate()).toSeconds() / 86_400.0);</span>
+<span class="fc" id="L45">			double weight = Math.pow(0.5, ageDays / halfLifeDays);</span>
+<span class="fc" id="L46">			basket.quantities().forEach((productId, quantity) -&gt; raw.merge(productId, quantity * weight, Double::sum));</span>
+<span class="fc" id="L47">		}</span>
+<span class="fc" id="L48">		double max = raw.values().stream().mapToDouble(Double::doubleValue).max().orElse(0);</span>
+<span class="fc" id="L49">		Map&lt;Long, Double&gt; normalized = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">		if (max &gt; 0) {</span>
+<span class="fc" id="L51">			raw.forEach((id, value) -&gt; normalized.put(id, value / max));</span>
+		}
+<span class="fc" id="L53">		return new PopularityScorer(Map.copyOf(normalized), halfLifeDays);</span>
+	}
+
+	/** Scores de popularite, independants des produits de depart. */
+<span class="fc" id="L57">	public record PopularityScorer(Map&lt;Long, Double&gt; scores, double halfLifeDays) implements Scorer {</span>
+
+		@Override
+		public double score(Collection&lt;Long&gt; seeds, Long candidate) {
+<span class="fc" id="L61">			return scores.getOrDefault(candidate, 0.0);</span>
+		}
+
+		@Override
+		public Map&lt;String, Object&gt; diagnostics() {
+<span class="fc" id="L66">			return Map.of(&quot;halfLifeDays&quot;, halfLifeDays, &quot;productsWithSales&quot;, scores.size());</span>
+		}
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

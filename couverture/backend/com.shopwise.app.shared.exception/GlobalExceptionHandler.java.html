@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GlobalExceptionHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.shared.exception</a> &gt; <span class="el_source">GlobalExceptionHandler.java</span></div><h1>GlobalExceptionHandler.java</h1><pre class="source lang-java linenums">package com.shopwise.app.shared.exception;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AccountStatusException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import com.shopwise.app.shared.exception.ApiError.FieldViolation;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
+
+/**
+ * Point unique de traduction des exceptions en reponses HTTP au format {@link ApiError} (US 6).
+ *
+ * - Exceptions metier ({@link ApiException}) : statut et code portes par l'exception.
+ * - Exceptions techniques de Spring MVC (JSON illisible, parametre mal type, methode non
+ *   supportee, route inconnue...) : prises en charge par {@link ResponseEntityExceptionHandler}
+ *   puis reformatees dans {@link #handleExceptionInternal}. Le code d'origine les laissait
+ *   tomber dans le handler generique, d'ou des 500 au lieu de 400/404/405.
+ * - Toute autre exception : 500 avec un message generique, sans fuite de detail interne.
+ */
+@RestControllerAdvice
+<span class="fc" id="L54">public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {</span>
+
+<span class="fc" id="L56">	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);</span>
+
+<span class="fc" id="L58">	private static final Comparator&lt;FieldViolation&gt; BY_FIELD = Comparator.comparing(FieldViolation::field)</span>
+<span class="fc" id="L59">			.thenComparing(FieldViolation::message, Comparator.nullsFirst(Comparator.naturalOrder()));</span>
+
+	@ExceptionHandler(ApiException.class)
+	public ResponseEntity&lt;ApiError&gt; handleApiException(ApiException ex, HttpServletRequest request) {
+<span class="fc" id="L63">		ErrorCode code = ex.getErrorCode();</span>
+<span class="fc" id="L64">		log.debug(&quot;{} on {} {}: {}&quot;, code, request.getMethod(), request.getRequestURI(), ex.getMessage());</span>
+<span class="fc" id="L65">		return respond(ApiError.of(code, ex.getMessage(), request.getRequestURI()));</span>
+	}
+
+	@ExceptionHandler(ConstraintViolationException.class)
+	public ResponseEntity&lt;ApiError&gt; handleConstraintViolation(ConstraintViolationException ex,
+			HttpServletRequest request) {
+<span class="fc" id="L71">		List&lt;FieldViolation&gt; violations = ex.getConstraintViolations().stream()</span>
+<span class="fc" id="L72">				.map(v -&gt; new FieldViolation(v.getPropertyPath().toString(), v.getMessage()))</span>
+<span class="fc" id="L73">				.sorted(BY_FIELD)</span>
+<span class="fc" id="L74">				.toList();</span>
+<span class="fc" id="L75">		ErrorCode code = ErrorCode.VALIDATION_ERROR;</span>
+<span class="fc" id="L76">		return respond(ApiError.of(code.getStatus(), code, code.getDefaultMessage(), request.getRequestURI(), violations));</span>
+	}
+
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public ResponseEntity&lt;ApiError&gt; handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
+		// Le detail SQL est journalise mais jamais renvoye au client (il revele le schema de la base).
+<span class="fc" id="L82">		log.warn(&quot;Data integrity violation on {} {}: {}&quot;, request.getMethod(), request.getRequestURI(),</span>
+<span class="fc" id="L83">				ex.getMostSpecificCause().getMessage());</span>
+<span class="fc" id="L84">		ErrorCode code = ErrorCode.CONFLICT;</span>
+<span class="fc" id="L85">		return respond(ApiError.of(code, code.getDefaultMessage(), request.getRequestURI()));</span>
+	}
+
+	/**
+	 * 401 (US 5) : jeton absent, invalide ou expire, ou identifiants de connexion incorrects.
+	 * Le message ne distingue pas &quot;utilisateur inconnu&quot; de &quot;mot de passe faux&quot; (pas d'enumeration de comptes).
+	 */
+	@ExceptionHandler(AuthenticationException.class)
+	public ResponseEntity&lt;ApiError&gt; handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+<span class="fc" id="L94">		ErrorCode code = ErrorCode.UNAUTHORIZED;</span>
+		String message;
+		String challenge;
+<span class="pc bpc" id="L97" title="1 of 4 branches missed.">		if (ex instanceof BadCredentialsException || ex instanceof AccountStatusException) {</span>
+<span class="fc" id="L98">			message = &quot;Invalid username or password&quot;;</span>
+<span class="fc" id="L99">			challenge = &quot;Bearer&quot;;</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">		} else if (ex instanceof OAuth2AuthenticationException) {</span>
+<span class="fc" id="L101">			message = &quot;Invalid or expired token&quot;;</span>
+<span class="fc" id="L102">			challenge = &quot;Bearer error=\&quot;invalid_token\&quot;&quot;;</span>
+		} else {
+<span class="fc" id="L104">			message = code.getDefaultMessage();</span>
+<span class="fc" id="L105">			challenge = &quot;Bearer&quot;;</span>
+		}
+<span class="fc" id="L107">		log.debug(&quot;401 on {} {}: {}&quot;, request.getMethod(), request.getRequestURI(), ex.getMessage());</span>
+<span class="fc" id="L108">		ApiError error = ApiError.of(code, message, request.getRequestURI());</span>
+<span class="fc" id="L109">		return ResponseEntity.status(code.getStatus()).header(HttpHeaders.WWW_AUTHENTICATE, challenge).body(error);</span>
+	}
+
+	/** 403 (US 4) : utilisateur authentifie dont le role n'autorise pas l'operation, avec un message explicite. */
+	@ExceptionHandler(AccessDeniedException.class)
+	public ResponseEntity&lt;ApiError&gt; handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+<span class="fc" id="L115">		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span>
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">		String user = authentication != null ? authentication.getName() : &quot;anonymous&quot;;</span>
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">		String roles = authentication == null ? &quot;none&quot; : authentication.getAuthorities().stream()</span>
+<span class="fc" id="L118">				.map(GrantedAuthority::getAuthority)</span>
+<span class="fc" id="L119">				.filter(authority -&gt; authority.startsWith(&quot;ROLE_&quot;))</span>
+<span class="fc" id="L120">				.map(authority -&gt; authority.substring(5))</span>
+<span class="fc" id="L121">				.sorted()</span>
+<span class="fc" id="L122">				.collect(Collectors.joining(&quot;, &quot;));</span>
+<span class="fc" id="L123">		log.warn(&quot;Access denied for user '{}' ({}) on {} {}&quot;, user, roles, request.getMethod(), request.getRequestURI());</span>
+<span class="fc" id="L124">		String message = &quot;Access denied: role %s is not allowed to %s %s&quot;.formatted(roles, request.getMethod(),</span>
+<span class="fc" id="L125">				request.getRequestURI());</span>
+<span class="fc" id="L126">		return respond(ApiError.of(ErrorCode.FORBIDDEN, message, request.getRequestURI()));</span>
+	}
+
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity&lt;ApiError&gt; handleUnexpected(Exception ex, HttpServletRequest request) {
+<span class="fc" id="L131">		log.error(&quot;Unexpected error on {} {}&quot;, request.getMethod(), request.getRequestURI(), ex);</span>
+<span class="fc" id="L132">		ErrorCode code = ErrorCode.INTERNAL_ERROR;</span>
+<span class="fc" id="L133">		return respond(ApiError.of(code, code.getDefaultMessage(), request.getRequestURI()));</span>
+	}
+
+	@Override
+	protected ResponseEntity&lt;Object&gt; handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+			HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+<span class="fc" id="L139">		List&lt;FieldViolation&gt; violations = ex.getBindingResult().getAllErrors().stream()</span>
+<span class="fc" id="L140">				.map(GlobalExceptionHandler::toViolation)</span>
+<span class="fc" id="L141">				.sorted(BY_FIELD)</span>
+<span class="fc" id="L142">				.toList();</span>
+<span class="fc" id="L143">		ErrorCode code = ErrorCode.VALIDATION_ERROR;</span>
+<span class="fc" id="L144">		ApiError body = ApiError.of(status, code, code.getDefaultMessage(), path(request), violations);</span>
+<span class="fc" id="L145">		return super.handleExceptionInternal(ex, body, headers, status, request);</span>
+	}
+
+	@Override
+	protected ResponseEntity&lt;Object&gt; handleExceptionInternal(Exception ex, Object body, HttpHeaders headers,
+			HttpStatusCode statusCode, WebRequest request) {
+<span class="pc bpc" id="L151" title="1 of 2 branches missed.">		if (body instanceof ApiError) {</span>
+<span class="nc" id="L152">			return super.handleExceptionInternal(ex, body, headers, statusCode, request);</span>
+		}
+<span class="fc" id="L154">		ErrorCode code = codeFor(ex, statusCode);</span>
+<span class="fc" id="L155">		String message = messageFor(ex, code, body, request);</span>
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">		if (statusCode.is5xxServerError()) {</span>
+<span class="nc" id="L157">			log.error(&quot;Server error on {}&quot;, path(request), ex);</span>
+		} else {
+<span class="fc" id="L159">			log.debug(&quot;{} on {}: {}&quot;, code, path(request), ex.getMessage());</span>
+		}
+<span class="fc" id="L161">		ApiError apiError = ApiError.of(statusCode, code, message, path(request), List.of());</span>
+<span class="fc" id="L162">		return super.handleExceptionInternal(ex, apiError, headers, statusCode, request);</span>
+	}
+
+	private static ErrorCode codeFor(Exception ex, HttpStatusCode status) {
+<span class="fc bfc" id="L166" title="All 2 branches covered.">		if (ex instanceof HttpMessageNotReadableException) {</span>
+<span class="fc" id="L167">			return ErrorCode.MALFORMED_REQUEST;</span>
+		}
+<span class="fc bfc" id="L169" title="All 2 branches covered.">		if (ex instanceof HandlerMethodValidationException) {</span>
+<span class="fc" id="L170">			return ErrorCode.VALIDATION_ERROR;</span>
+		}
+<span class="pc bpc" id="L172" title="1 of 4 branches missed.">		if (ex instanceof TypeMismatchException || ex instanceof MissingServletRequestParameterException) {</span>
+<span class="fc" id="L173">			return ErrorCode.INVALID_PARAMETER;</span>
+		}
+<span class="fc" id="L175">		return ErrorCode.fromStatus(status);</span>
+	}
+
+	private static String messageFor(Exception ex, ErrorCode code, Object body, WebRequest request) {
+<span class="fc bfc" id="L179" title="All 2 branches covered.">		if (ex instanceof HttpMessageNotReadableException) {</span>
+<span class="fc" id="L180">			return code.getDefaultMessage();</span>
+		}
+<span class="fc bfc" id="L182" title="All 2 branches covered.">		if (ex instanceof MethodArgumentTypeMismatchException mismatch) {</span>
+<span class="fc" id="L183">			return &quot;Invalid value '%s' for parameter '%s'&quot;.formatted(mismatch.getValue(), mismatch.getName());</span>
+		}
+<span class="pc bpc" id="L185" title="1 of 4 branches missed.">		if (ex instanceof NoResourceFoundException &amp;&amp; request instanceof ServletWebRequest swr) {</span>
+<span class="fc" id="L186">			return &quot;No endpoint %s %s&quot;.formatted(swr.getRequest().getMethod(), swr.getRequest().getRequestURI());</span>
+		}
+<span class="pc bpc" id="L188" title="3 of 4 branches missed.">		if (body instanceof ProblemDetail problem &amp;&amp; problem.getDetail() != null) {</span>
+<span class="nc" id="L189">			return problem.getDetail();</span>
+		}
+<span class="pc bpc" id="L191" title="2 of 4 branches missed.">		if (ex instanceof ErrorResponse errorResponse &amp;&amp; errorResponse.getBody().getDetail() != null) {</span>
+<span class="fc" id="L192">			return errorResponse.getBody().getDetail();</span>
+		}
+<span class="nc" id="L194">		return code.getDefaultMessage();</span>
+	}
+
+	private static FieldViolation toViolation(ObjectError error) {
+<span class="pc bpc" id="L198" title="1 of 2 branches missed.">		String field = error instanceof FieldError fieldError ? fieldError.getField() : error.getObjectName();</span>
+<span class="fc" id="L199">		return new FieldViolation(field, error.getDefaultMessage());</span>
+	}
+
+	private static String path(WebRequest request) {
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">		return request instanceof ServletWebRequest swr ? swr.getRequest().getRequestURI() : null;</span>
+	}
+
+	private static ResponseEntity&lt;ApiError&gt; respond(ApiError error) {
+<span class="fc" id="L207">		return ResponseEntity.status(error.status()).body(error);</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

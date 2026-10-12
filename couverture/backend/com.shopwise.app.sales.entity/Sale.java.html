@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Sale.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.sales.entity</a> &gt; <span class="el_source">Sale.java</span></div><h1>Sale.java</h1><pre class="source lang-java linenums">package com.shopwise.app.sales.entity;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.Table;
+
+/**
+ * Vente : agregat racine qui possede ses lignes.
+ *
+ * Le total n'est jamais fourni par le client : il est recalcule a chaque ajout de ligne
+ * (US 1 : &quot;le total est calcule automatiquement&quot;). Les lignes ne sont modifiables qu'a
+ * travers {@link #addLine}, ce qui garantit que le total reste coherent.
+ * L'auteur (createdBy) est renseigne automatiquement par l'audit JPA (US 5).
+ */
+@Entity
+@Table(name = &quot;SALES&quot;)
+@EntityListeners(AuditingEntityListener.class)
+public class Sale {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@Column(name = &quot;sale_date&quot;, nullable = false)
+	private LocalDateTime saleDate;
+
+	@CreatedBy
+	@Column(name = &quot;created_by&quot;, length = 50, updatable = false)
+	private String createdBy;
+
+<span class="fc" id="L49">	@Column(name = &quot;total_amount&quot;, nullable = false, precision = 12, scale = 2)</span>
+<span class="fc" id="L50">	private BigDecimal totalAmount = BigDecimal.ZERO.setScale(2);</span>
+
+<span class="fc" id="L52">	@OneToMany(mappedBy = &quot;sale&quot;, cascade = CascadeType.ALL, orphanRemoval = true)</span>
+	@OrderBy(&quot;id ASC&quot;)
+	private List&lt;SaleLine&gt; lines = new ArrayList&lt;&gt;();
+
+	/** Reserve a JPA. */
+<span class="fc" id="L57">	protected Sale() {</span>
+<span class="fc" id="L58">	}</span>
+
+<span class="fc" id="L60">	public Sale(LocalDateTime saleDate) {</span>
+<span class="fc" id="L61">		this.saleDate = Objects.requireNonNull(saleDate, &quot;saleDate&quot;);</span>
+<span class="fc" id="L62">	}</span>
+
+	/**
+	 * Ajoute une ligne en figeant le nom et le prix unitaire du produit a la date de la vente,
+	 * puis recalcule le total.
+	 */
+	public SaleLine addLine(Long productId, String productName, int quantity, BigDecimal unitPrice) {
+<span class="fc" id="L69">		SaleLine line = new SaleLine(this, productId, productName, quantity, unitPrice);</span>
+<span class="fc" id="L70">		lines.add(line);</span>
+<span class="fc" id="L71">		totalAmount = lines.stream()</span>
+<span class="fc" id="L72">				.map(SaleLine::getLineTotal)</span>
+<span class="fc" id="L73">				.reduce(BigDecimal.ZERO, BigDecimal::add)</span>
+<span class="fc" id="L74">				.setScale(2, RoundingMode.HALF_UP);</span>
+<span class="fc" id="L75">		return line;</span>
+	}
+
+	public Long getId() {
+<span class="fc" id="L79">		return id;</span>
+	}
+
+	public LocalDateTime getSaleDate() {
+<span class="fc" id="L83">		return saleDate;</span>
+	}
+
+	public String getCreatedBy() {
+<span class="fc" id="L87">		return createdBy;</span>
+	}
+
+	public BigDecimal getTotalAmount() {
+<span class="fc" id="L91">		return totalAmount;</span>
+	}
+
+	public List&lt;SaleLine&gt; getLines() {
+<span class="fc" id="L95">		return Collections.unmodifiableList(lines);</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

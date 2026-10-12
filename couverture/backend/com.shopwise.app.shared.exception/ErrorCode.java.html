@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ErrorCode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.shared.exception</a> &gt; <span class="el_source">ErrorCode.java</span></div><h1>ErrorCode.java</h1><pre class="source lang-java linenums">package com.shopwise.app.shared.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+
+/**
+ * Codes d'erreur exposes par l'API (champ &quot;code&quot; de {@link ApiError}).
+ *
+ * Le code est un contrat stable pour les clients de l'API : ils peuvent s'y fier pour reagir
+ * a une erreur, alors que le message, destine a un humain, peut evoluer librement.
+ */
+<span class="fc" id="L12">public enum ErrorCode {</span>
+
+<span class="fc" id="L14">	VALIDATION_ERROR(HttpStatus.BAD_REQUEST, &quot;Request validation failed&quot;),</span>
+<span class="fc" id="L15">	MALFORMED_REQUEST(HttpStatus.BAD_REQUEST, &quot;Malformed JSON request body&quot;),</span>
+<span class="fc" id="L16">	INVALID_PARAMETER(HttpStatus.BAD_REQUEST, &quot;Invalid request parameter&quot;),</span>
+<span class="fc" id="L17">	INVALID_REFERENCE(HttpStatus.BAD_REQUEST, &quot;The request references a resource that does not exist&quot;),</span>
+<span class="fc" id="L18">	BAD_REQUEST(HttpStatus.BAD_REQUEST, &quot;Bad request&quot;),</span>
+<span class="fc" id="L19">	UNAUTHORIZED(HttpStatus.UNAUTHORIZED, &quot;Authentication is required to access this resource&quot;),</span>
+<span class="fc" id="L20">	FORBIDDEN(HttpStatus.FORBIDDEN, &quot;You are not allowed to perform this operation&quot;),</span>
+<span class="fc" id="L21">	RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, &quot;Resource not found&quot;),</span>
+<span class="fc" id="L22">	METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, &quot;HTTP method not allowed on this resource&quot;),</span>
+<span class="fc" id="L23">	CONFLICT(HttpStatus.CONFLICT, &quot;The operation conflicts with existing data&quot;),</span>
+<span class="fc" id="L24">	UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, &quot;Unsupported media type&quot;),</span>
+<span class="fc" id="L25">	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, &quot;An unexpected error occurred&quot;);</span>
+
+	private final HttpStatus status;
+	private final String defaultMessage;
+
+<span class="fc" id="L30">	ErrorCode(HttpStatus status, String defaultMessage) {</span>
+<span class="fc" id="L31">		this.status = status;</span>
+<span class="fc" id="L32">		this.defaultMessage = defaultMessage;</span>
+<span class="fc" id="L33">	}</span>
+
+	public HttpStatus getStatus() {
+<span class="fc" id="L36">		return status;</span>
+	}
+
+	public String getDefaultMessage() {
+<span class="fc" id="L40">		return defaultMessage;</span>
+	}
+
+	/** Code generique correspondant a un statut HTTP, utilise quand aucun code plus precis n'existe. */
+	public static ErrorCode fromStatus(HttpStatusCode status) {
+<span class="pc bpc" id="L45" title="2 of 8 branches missed.">		return switch (status.value()) {</span>
+<span class="nc" id="L46">			case 400 -&gt; BAD_REQUEST;</span>
+<span class="fc" id="L47">			case 401 -&gt; UNAUTHORIZED;</span>
+<span class="fc" id="L48">			case 403 -&gt; FORBIDDEN;</span>
+<span class="fc" id="L49">			case 404 -&gt; RESOURCE_NOT_FOUND;</span>
+<span class="fc" id="L50">			case 405 -&gt; METHOD_NOT_ALLOWED;</span>
+<span class="nc" id="L51">			case 409 -&gt; CONFLICT;</span>
+<span class="fc" id="L52">			case 415 -&gt; UNSUPPORTED_MEDIA_TYPE;</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">			default -&gt; status.is4xxClientError() ? BAD_REQUEST : INTERNAL_ERROR;</span>
+		};
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

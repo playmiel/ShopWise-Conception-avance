@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApiError.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.shared.exception</a> &gt; <span class="el_source">ApiError.java</span></div><h1>ApiError.java</h1><pre class="source lang-java linenums">package com.shopwise.app.shared.exception;
+
+import java.time.Instant;
+import java.util.List;
+
+import org.springframework.http.HttpStatusCode;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+/**
+ * Format JSON unique de toutes les reponses d'erreur de l'API (US 6).
+ *
+ * &lt;pre&gt;
+ * {
+ *   &quot;status&quot;: 404,
+ *   &quot;code&quot;: &quot;RESOURCE_NOT_FOUND&quot;,
+ *   &quot;message&quot;: &quot;Product not found&quot;,
+ *   &quot;path&quot;: &quot;/api/products/42&quot;,
+ *   &quot;timestamp&quot;: &quot;2026-10-12T09:15:30.123Z&quot;,
+ *   &quot;errors&quot;: [ { &quot;field&quot;: &quot;price&quot;, &quot;message&quot;: &quot;must be greater than 0&quot; } ]
+ * }
+ * &lt;/pre&gt;
+ *
+ * &quot;errors&quot; n'apparait que pour les erreurs de validation (liste des champs en faute).
+ */
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+<span class="fc" id="L27">public record ApiError(</span>
+		int status,
+		String code,
+		String message,
+		String path,
+		Instant timestamp,
+		List&lt;FieldViolation&gt; errors) {
+
+	/** Erreur de validation portant sur un champ de la requete. */
+<span class="fc" id="L36">	public record FieldViolation(String field, String message) {</span>
+	}
+
+	public static ApiError of(HttpStatusCode status, ErrorCode code, String message, String path,
+			List&lt;FieldViolation&gt; errors) {
+<span class="fc" id="L41">		return new ApiError(status.value(), code.name(), message, path, Instant.now(), List.copyOf(errors));</span>
+	}
+
+	public static ApiError of(ErrorCode code, String message, String path) {
+<span class="fc" id="L45">		return of(code.getStatus(), code, message, path, List.of());</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

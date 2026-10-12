@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContentSimilarityStrategy.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.recommendation.algorithm</a> &gt; <span class="el_source">ContentSimilarityStrategy.java</span></div><h1>ContentSimilarityStrategy.java</h1><pre class="source lang-java linenums">package com.shopwise.app.recommendation.algorithm;
+
+import java.text.Normalizer;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+import org.springframework.stereotype.Component;
+
+import com.shopwise.app.recommendation.data.TrainingData;
+
+/**
+ * Similarite de contenu : vecteurs TF-IDF sur le nom et la description, compares par cosinus.
+ * Ne depend pas des ventes : couvre le demarrage a froid (produit jamais vendu).
+ */
+@Component
+<span class="fc" id="L21">public class ContentSimilarityStrategy implements RecommendationStrategy {</span>
+
+	public static final String NAME = &quot;content&quot;;
+
+<span class="fc" id="L25">	private static final Set&lt;String&gt; STOP_WORDS = Set.of(&quot;les&quot;, &quot;des&quot;, &quot;une&quot;, &quot;pour&quot;, &quot;avec&quot;, &quot;sans&quot;, &quot;aux&quot;, &quot;the&quot;,</span>
+			&quot;and&quot;, &quot;for&quot;, &quot;with&quot;, &quot;latest&quot;);
+
+	@Override
+	public String name() {
+<span class="fc" id="L30">		return NAME;</span>
+	}
+
+	@Override
+	public String reason() {
+<span class="fc" id="L35">		return &quot;SIMILAR_PRODUCT&quot;;</span>
+	}
+
+	/** Minuscules, sans accents, mots de 3 lettres ou plus hors mots vides. */
+	static List&lt;String&gt; tokenize(String text) {
+<span class="pc bpc" id="L40" title="2 of 4 branches missed.">		if (text == null || text.isBlank()) {</span>
+<span class="nc" id="L41">			return List.of();</span>
+		}
+<span class="fc" id="L43">		String normalized = Normalizer.normalize(text, Normalizer.Form.NFD).replaceAll(&quot;\\p{M}&quot;, &quot;&quot;)</span>
+<span class="fc" id="L44">				.toLowerCase(Locale.ROOT);</span>
+<span class="fc" id="L45">		return Arrays.stream(normalized.split(&quot;[^a-z0-9]+&quot;))</span>
+<span class="fc bfc" id="L46" title="All 4 branches covered.">				.filter(token -&gt; token.length() &gt;= 3 &amp;&amp; !STOP_WORDS.contains(token))</span>
+<span class="fc" id="L47">				.toList();</span>
+	}
+
+	@Override
+	public Scorer train(TrainingData data) {
+<span class="fc" id="L52">		Map&lt;Long, Map&lt;String, Integer&gt;&gt; termCounts = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L53">		Map&lt;String, Integer&gt; documentFrequency = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">		for (TrainingData.ProductFeatures product : data.products()) {</span>
+<span class="fc" id="L55">			Map&lt;String, Integer&gt; counts = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">			tokenize(product.name() + &quot; &quot; + (product.description() == null ? &quot;&quot; : product.description()))</span>
+<span class="fc" id="L57">					.forEach(token -&gt; counts.merge(token, 1, Integer::sum));</span>
+<span class="fc" id="L58">			termCounts.put(product.id(), counts);</span>
+<span class="fc" id="L59">			counts.keySet().forEach(term -&gt; documentFrequency.merge(term, 1, Integer::sum));</span>
+<span class="fc" id="L60">		}</span>
+<span class="fc" id="L61">		int documents = data.products().size();</span>
+<span class="fc" id="L62">		Map&lt;Long, Map&lt;String, Double&gt;&gt; vectors = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L63">		termCounts.forEach((productId, counts) -&gt; {</span>
+<span class="fc" id="L64">			Map&lt;String, Double&gt; vector = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L65">			counts.forEach((term, tf) -&gt; {</span>
+<span class="fc" id="L66">				double idf = Math.log((documents + 1.0) / (documentFrequency.get(term) + 1.0)) + 1.0;</span>
+<span class="fc" id="L67">				vector.put(term, tf * idf);</span>
+<span class="fc" id="L68">			});</span>
+<span class="fc" id="L69">			double norm = Math.sqrt(vector.values().stream().mapToDouble(v -&gt; v * v).sum());</span>
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">			if (norm &gt; 0) {</span>
+<span class="fc" id="L71">				vector.replaceAll((term, value) -&gt; value / norm);</span>
+			}
+<span class="fc" id="L73">			vectors.put(productId, Map.copyOf(vector));</span>
+<span class="fc" id="L74">		});</span>
+<span class="fc" id="L75">		return new TfIdfScorer(Map.copyOf(vectors), documentFrequency.size());</span>
+	}
+
+	/** Vecteurs TF-IDF normalises par produit. */
+<span class="fc" id="L79">	public record TfIdfScorer(Map&lt;Long, Map&lt;String, Double&gt;&gt; vectors, int vocabularySize) implements Scorer {</span>
+
+		public double similarity(Long a, Long b) {
+<span class="fc" id="L82">			Map&lt;String, Double&gt; va = vectors.get(a);</span>
+<span class="fc" id="L83">			Map&lt;String, Double&gt; vb = vectors.get(b);</span>
+<span class="pc bpc" id="L84" title="4 of 8 branches missed.">			if (va == null || vb == null || va.isEmpty() || vb.isEmpty()) {</span>
+<span class="nc" id="L85">				return 0.0;</span>
+			}
+<span class="fc bfc" id="L87" title="All 2 branches covered.">			Map&lt;String, Double&gt; small = va.size() &lt;= vb.size() ? va : vb;</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">			Map&lt;String, Double&gt; large = small == va ? vb : va;</span>
+<span class="fc" id="L89">			double dot = 0;</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">			for (Map.Entry&lt;String, Double&gt; entry : small.entrySet()) {</span>
+<span class="fc" id="L91">				dot += entry.getValue() * large.getOrDefault(entry.getKey(), 0.0);</span>
+<span class="fc" id="L92">			}</span>
+<span class="fc" id="L93">			return Math.max(0, Math.min(1, dot));</span>
+		}
+
+		@Override
+		public double score(Collection&lt;Long&gt; seeds, Long candidate) {
+<span class="fc bfc" id="L98" title="All 2 branches covered.">			return seeds.isEmpty() ? 0.0</span>
+<span class="fc" id="L99">					: seeds.stream().mapToDouble(seed -&gt; similarity(seed, candidate)).average().orElse(0);</span>
+		}
+
+		@Override
+		public Map&lt;String, Object&gt; diagnostics() {
+<span class="fc" id="L104">			return Map.of(&quot;vocabularySize&quot;, vocabularySize, &quot;products&quot;, vectors.size());</span>
+		}
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

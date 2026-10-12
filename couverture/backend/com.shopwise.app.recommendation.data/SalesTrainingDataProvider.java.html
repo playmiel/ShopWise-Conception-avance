@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SalesTrainingDataProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.recommendation.data</a> &gt; <span class="el_source">SalesTrainingDataProvider.java</span></div><h1>SalesTrainingDataProvider.java</h1><pre class="source lang-java linenums">package com.shopwise.app.recommendation.data;
+
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.shopwise.app.catalog.service.ProductService;
+import com.shopwise.app.sales.dto.response.SoldItem;
+import com.shopwise.app.sales.service.SaleService;
+
+/**
+ * Source par defaut : catalogue et historique des ventes de l'application. Le module ne lit les
+ * donnees qu'a travers les API publiques des modules Catalogue et Ventes (pas leurs tables).
+ */
+@Component
+public class SalesTrainingDataProvider implements TrainingDataProvider {
+
+	private final ProductService productService;
+	private final SaleService saleService;
+	private final Clock clock;
+
+<span class="fc" id="L28">	public SalesTrainingDataProvider(ProductService productService, SaleService saleService, Clock clock) {</span>
+<span class="fc" id="L29">		this.productService = productService;</span>
+<span class="fc" id="L30">		this.saleService = saleService;</span>
+<span class="fc" id="L31">		this.clock = clock;</span>
+<span class="fc" id="L32">	}</span>
+
+	@Override
+	@Transactional(readOnly = true)
+	public TrainingData load() {
+<span class="fc" id="L37">		List&lt;TrainingData.ProductFeatures&gt; products = productService.getAll().stream()</span>
+<span class="fc" id="L38">				.map(p -&gt; new TrainingData.ProductFeatures(p.getId(), p.getName(), p.getDescription()))</span>
+<span class="fc" id="L39">				.toList();</span>
+
+<span class="fc" id="L41">		Map&lt;Long, LocalDateTime&gt; dates = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L42">		Map&lt;Long, Map&lt;Long, Integer&gt;&gt; baskets = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">		for (SoldItem item : saleService.getSoldItems()) {</span>
+<span class="fc" id="L44">			dates.putIfAbsent(item.saleId(), item.saleDate());</span>
+<span class="fc" id="L45">			baskets.computeIfAbsent(item.saleId(), id -&gt; new LinkedHashMap&lt;&gt;())</span>
+<span class="fc" id="L46">					.merge(item.productId(), item.quantity(), Integer::sum);</span>
+<span class="fc" id="L47">		}</span>
+<span class="fc" id="L48">		List&lt;TrainingData.Basket&gt; basketList = new ArrayList&lt;&gt;(baskets.size());</span>
+<span class="fc" id="L49">		baskets.forEach((saleId, items) -&gt; basketList.add(new TrainingData.Basket(saleId, dates.get(saleId), items)));</span>
+
+<span class="fc" id="L51">		return new TrainingData(LocalDateTime.now(clock), products, basketList);</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

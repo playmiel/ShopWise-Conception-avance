@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TokenService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.shopwise.app.security.service</a> &gt; <span class="el_source">TokenService.java</span></div><h1>TokenService.java</h1><pre class="source lang-java linenums">package com.shopwise.app.security.service;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.stereotype.Service;
+
+import com.shopwise.app.security.config.SecurityConfig;
+import com.shopwise.app.security.config.SecurityProperties;
+import com.shopwise.app.security.dto.TokenResponse;
+
+/** Emet le jeton JWT d'un utilisateur authentifie : sujet, roles, emetteur, dates de validite. */
+@Service
+public class TokenService {
+
+	private final JwtEncoder jwtEncoder;
+	private final SecurityProperties properties;
+	private final Clock clock;
+
+<span class="fc" id="L28">	public TokenService(JwtEncoder jwtEncoder, SecurityProperties properties, Clock clock) {</span>
+<span class="fc" id="L29">		this.jwtEncoder = jwtEncoder;</span>
+<span class="fc" id="L30">		this.properties = properties;</span>
+<span class="fc" id="L31">		this.clock = clock;</span>
+<span class="fc" id="L32">	}</span>
+
+	public TokenResponse issue(Authentication authentication) {
+<span class="fc" id="L35">		Instant now = clock.instant();</span>
+<span class="fc" id="L36">		List&lt;String&gt; roles = roles(authentication);</span>
+<span class="fc" id="L37">		JwtClaimsSet claims = JwtClaimsSet.builder()</span>
+<span class="fc" id="L38">				.issuer(properties.jwt().issuer())</span>
+<span class="fc" id="L39">				.subject(authentication.getName())</span>
+<span class="fc" id="L40">				.issuedAt(now)</span>
+<span class="fc" id="L41">				.expiresAt(now.plus(properties.jwt().expiration()))</span>
+<span class="fc" id="L42">				.claim(SecurityConfig.ROLES_CLAIM, roles)</span>
+<span class="fc" id="L43">				.build();</span>
+<span class="fc" id="L44">		JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();</span>
+<span class="fc" id="L45">		String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();</span>
+<span class="fc" id="L46">		return new TokenResponse(token, &quot;Bearer&quot;, properties.jwt().expiration().toSeconds(), authentication.getName(), roles);</span>
+	}
+
+	/**
+	 * Roles applicatifs, sans le prefixe ROLE_, tries. Seules les autorites ROLE_* sont retenues :
+	 * Spring Security 7 ajoute aussi des autorites de facteur d'authentification (FACTOR_PASSWORD,
+	 * FACTOR_BEARER) qui ne sont pas des roles et ne doivent pas finir dans le jeton.
+	 */
+	public static List&lt;String&gt; roles(Authentication authentication) {
+<span class="fc" id="L55">		return authentication.getAuthorities().stream()</span>
+<span class="fc" id="L56">				.map(GrantedAuthority::getAuthority)</span>
+<span class="fc" id="L57">				.filter(authority -&gt; authority.startsWith(&quot;ROLE_&quot;))</span>
+<span class="fc" id="L58">				.map(authority -&gt; authority.substring(5))</span>
+<span class="fc" id="L59">				.sorted()</span>
+<span class="fc" id="L60">				.toList();</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
