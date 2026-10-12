@@ -1,5 +1,6 @@
 package com.shopwise.app.catalog.service;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -61,6 +62,17 @@ public class ProductServiceImpl implements ProductService {
             throw new NotFoundException("Product not found");
         }
         productRepository.deleteById(id);
+        // flush immediat : un produit reference par une vente leve ici une violation de contrainte (-> 409)
+        productRepository.flush();
     }
 	
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return productMapper.toResponseList(productRepository.findAllById(ids));
+    }
 }

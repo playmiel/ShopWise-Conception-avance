@@ -1,5 +1,6 @@
 package com.shopwise.app.catalog.service;
 
+import java.util.Collection;
 import java.util.List;
 
 import com.shopwise.app.catalog.dto.request.CreateProductRequest;
@@ -17,4 +18,7 @@ public interface ProductService {
     public ProductResponse update(Long id, UpdateProductRequest request);
 
     public void delete(Long id);
+
+    /** Produits correspondant aux identifiants donnes (les identifiants inconnus sont ignores). */
+    List<ProductResponse> getByIds(Collection<Long> ids);
 }
