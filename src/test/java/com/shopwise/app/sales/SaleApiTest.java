@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,8 @@ import com.jayway.jsonpath.JsonPath;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+// Securite (US 4/5) : execution en ADMIN ; le controle d'acces est teste par SecurityApiTest et AuthorizationMatrixTest
+@WithMockUser(username = "admin", roles = "ADMIN")
 @Tag("api")
 @DisplayName("API - ventes /api/sales (US 1 a 3)")
 class SaleApiTest {
@@ -56,6 +59,7 @@ class SaleApiTest {
 				.andExpect(header().string("Location", containsString("/api/sales/")))
 				.andExpect(jsonPath("$.id", notNullValue()))
 				.andExpect(jsonPath("$.saleDate", notNullValue()))
+				.andExpect(jsonPath("$.createdBy").value("admin"))
 				.andExpect(jsonPath("$.totalAmount").value(3299.97))
 				.andExpect(jsonPath("$.lines", hasSize(2)))
 				.andExpect(jsonPath("$.lines[0].productId").value(1))

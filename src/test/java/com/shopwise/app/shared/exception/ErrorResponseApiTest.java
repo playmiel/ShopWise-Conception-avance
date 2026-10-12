@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+// Securite (US 4/5) : execution en ADMIN ; le controle d'acces est teste par SecurityApiTest et AuthorizationMatrixTest
+@WithMockUser(username = "admin", roles = "ADMIN")
 @Tag("api")
 @DisplayName("API - format normalise des erreurs (US 6)")
 class ErrorResponseApiTest {

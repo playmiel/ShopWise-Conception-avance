@@ -2,6 +2,7 @@ package com.shopwise.app.shared.exception;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +13,14 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AccountStatusException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.ErrorResponse;
@@ -74,6 +83,47 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				ex.getMostSpecificCause().getMessage());
 		ErrorCode code = ErrorCode.CONFLICT;
 		return respond(ApiError.of(code, code.getDefaultMessage(), request.getRequestURI()));
+	}
+
+	/**
+	 * 401 (US 5) : jeton absent, invalide ou expire, ou identifiants de connexion incorrects.
+	 * Le message ne distingue pas "utilisateur inconnu" de "mot de passe faux" (pas d'enumeration de comptes).
+	 */
+	@ExceptionHandler(AuthenticationException.class)
+	public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+		ErrorCode code = ErrorCode.UNAUTHORIZED;
+		String message;
+		String challenge;
+		if (ex instanceof BadCredentialsException || ex instanceof AccountStatusException) {
+			message = "Invalid username or password";
+			challenge = "Bearer";
+		} else if (ex instanceof OAuth2AuthenticationException) {
+			message = "Invalid or expired token";
+			challenge = "Bearer error=\"invalid_token\"";
+		} else {
+			message = code.getDefaultMessage();
+			challenge = "Bearer";
+		}
+		log.debug("401 on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getMessage());
+		ApiError error = ApiError.of(code, message, request.getRequestURI());
+		return ResponseEntity.status(code.getStatus()).header(HttpHeaders.WWW_AUTHENTICATE, challenge).body(error);
+	}
+
+	/** 403 (US 4) : utilisateur authentifie dont le role n'autorise pas l'operation, avec un message explicite. */
+	@ExceptionHandler(AccessDeniedException.class)
+	public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		String user = authentication != null ? authentication.getName() : "anonymous";
+		String roles = authentication == null ? "none" : authentication.getAuthorities().stream()
+				.map(GrantedAuthority::getAuthority)
+				.filter(authority -> authority.startsWith("ROLE_"))
+				.map(authority -> authority.substring(5))
+				.sorted()
+				.collect(Collectors.joining(", "));
+		log.warn("Access denied for user '{}' ({}) on {} {}", user, roles, request.getMethod(), request.getRequestURI());
+		String message = "Access denied: role %s is not allowed to %s %s".formatted(roles, request.getMethod(),
+				request.getRequestURI());
+		return respond(ApiError.of(ErrorCode.FORBIDDEN, message, request.getRequestURI()));
 	}
 
 	@ExceptionHandler(Exception.class)

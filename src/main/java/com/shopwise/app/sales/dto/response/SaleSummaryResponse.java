@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public record SaleSummaryResponse(
 		Long id,
 		LocalDateTime saleDate,
+		String createdBy,
 		BigDecimal totalAmount,
 		Long lineCount,
 		Long itemCount) {

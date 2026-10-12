@@ -8,9 +8,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -24,9 +28,11 @@ import jakarta.persistence.Table;
  * Le total n'est jamais fourni par le client : il est recalcule a chaque ajout de ligne
  * (US 1 : "le total est calcule automatiquement"). Les lignes ne sont modifiables qu'a
  * travers {@link #addLine}, ce qui garantit que le total reste coherent.
+ * L'auteur (createdBy) est renseigne automatiquement par l'audit JPA (US 5).
  */
 @Entity
 @Table(name = "SALES")
+@EntityListeners(AuditingEntityListener.class)
 public class Sale {
 
 	@Id
@@ -35,6 +41,10 @@ public class Sale {
 
 	@Column(name = "sale_date", nullable = false)
 	private LocalDateTime saleDate;
+
+	@CreatedBy
+	@Column(name = "created_by", length = 50, updatable = false)
+	private String createdBy;
 
 	@Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
 	private BigDecimal totalAmount = BigDecimal.ZERO.setScale(2);
@@ -71,6 +81,10 @@ public class Sale {
 
 	public LocalDateTime getSaleDate() {
 		return saleDate;
+	}
+
+	public String getCreatedBy() {
+		return createdBy;
 	}
 
 	public BigDecimal getTotalAmount() {
