@@ -1,4 +1,4 @@
-package com.shopwise.app.dto.request;
+package com.shopwise.app.catalog.dto.request;
 
 import java.math.BigDecimal;
 
@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-public class CreateProductRequest {
+public class UpdateProductRequest {
 
 	@NotBlank @Size(max = 100)
 	private String name;
@@ -19,7 +19,7 @@ public class CreateProductRequest {
 	@Positive
 	private BigDecimal price;
 
-	public CreateProductRequest() {
+	public UpdateProductRequest() {
 	}
 
 	public String getName() {
@@ -45,4 +45,5 @@ public class CreateProductRequest {
 	public void setPrice(BigDecimal price) {
 		this.price = price;
 	}
+
 }

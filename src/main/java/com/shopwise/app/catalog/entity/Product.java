@@ -1,4 +1,4 @@
-package com.shopwise.app.entity;
+package com.shopwise.app.catalog.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

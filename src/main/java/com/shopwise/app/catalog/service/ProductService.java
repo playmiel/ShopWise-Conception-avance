@@ -1,10 +1,10 @@
-package com.shopwise.app.service;
+package com.shopwise.app.catalog.service;
 
 import java.util.List;
 
-import com.shopwise.app.dto.request.CreateProductRequest;
-import com.shopwise.app.dto.request.UpdateProductRequest;
-import com.shopwise.app.dto.response.ProductResponse;
+import com.shopwise.app.catalog.dto.request.CreateProductRequest;
+import com.shopwise.app.catalog.dto.request.UpdateProductRequest;
+import com.shopwise.app.catalog.dto.response.ProductResponse;
 
 public interface ProductService {
 	

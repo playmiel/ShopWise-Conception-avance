@@ -1,4 +1,4 @@
-package com.shopwise.app.dto.response;
+package com.shopwise.app.catalog.dto.response;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

@@ -22,14 +22,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.shopwise.app.dto.request.CreateProductRequest;
-import com.shopwise.app.dto.request.UpdateProductRequest;
-import com.shopwise.app.dto.response.ProductResponse;
-import com.shopwise.app.entity.Product;
-import com.shopwise.app.exception.NotFoundException;
-import com.shopwise.app.mapper.ProductMapper;
-import com.shopwise.app.repository.ProductRepository;
-import com.shopwise.app.service.ProductServiceImpl;
+import com.shopwise.app.catalog.dto.request.CreateProductRequest;
+import com.shopwise.app.catalog.dto.request.UpdateProductRequest;
+import com.shopwise.app.catalog.dto.response.ProductResponse;
+import com.shopwise.app.catalog.entity.Product;
+import com.shopwise.app.shared.exception.NotFoundException;
+import com.shopwise.app.catalog.mapper.ProductMapper;
+import com.shopwise.app.catalog.repository.ProductRepository;
+import com.shopwise.app.catalog.service.ProductServiceImpl;
 
 /**
  * Tests unitaires du service catalogue : la base est simulee (Mockito), le mapper est

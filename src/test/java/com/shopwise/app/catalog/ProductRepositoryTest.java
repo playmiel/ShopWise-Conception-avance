@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
-import com.shopwise.app.entity.Product;
-import com.shopwise.app.repository.ProductRepository;
+import com.shopwise.app.catalog.entity.Product;
+import com.shopwise.app.catalog.repository.ProductRepository;
 
 /**
  * Test d'integration de la couche persistance (JPA + H2) : verifie le mapping de l'entite

@@ -1,4 +1,4 @@
-package com.shopwise.app.exception;
+package com.shopwise.app.shared.exception;
 
 public class NotFoundException extends RuntimeException {
 

@@ -1,4 +1,4 @@
-package com.shopwise.app.exception;
+package com.shopwise.app.shared.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

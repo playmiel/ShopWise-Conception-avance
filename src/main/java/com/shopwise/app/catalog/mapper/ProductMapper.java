@@ -1,14 +1,14 @@
-package com.shopwise.app.mapper;
+package com.shopwise.app.catalog.mapper;
 
 import java.util.List;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 
-import com.shopwise.app.dto.request.CreateProductRequest;
-import com.shopwise.app.dto.request.UpdateProductRequest;
-import com.shopwise.app.dto.response.ProductResponse;
-import com.shopwise.app.entity.Product;
+import com.shopwise.app.catalog.dto.request.CreateProductRequest;
+import com.shopwise.app.catalog.dto.request.UpdateProductRequest;
+import com.shopwise.app.catalog.dto.response.ProductResponse;
+import com.shopwise.app.catalog.entity.Product;
 
 @Mapper(componentModel = "spring")
 public interface ProductMapper {

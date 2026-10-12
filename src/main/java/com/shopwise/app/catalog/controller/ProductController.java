@@ -1,4 +1,4 @@
-package com.shopwise.app.controller;
+package com.shopwise.app.catalog.controller;
 
 import java.util.List;
 
@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.shopwise.app.dto.request.CreateProductRequest;
-import com.shopwise.app.dto.request.UpdateProductRequest;
-import com.shopwise.app.dto.response.ProductResponse;
-import com.shopwise.app.service.ProductService;
+import com.shopwise.app.catalog.dto.request.CreateProductRequest;
+import com.shopwise.app.catalog.dto.request.UpdateProductRequest;
+import com.shopwise.app.catalog.dto.response.ProductResponse;
+import com.shopwise.app.catalog.service.ProductService;
 
 import jakarta.validation.Valid;
 
