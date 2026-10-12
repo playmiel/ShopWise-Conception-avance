@@ -25,4 +25,12 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
 			order by s.saleDate desc, s.id desc
 			""")
 	List<SaleSummaryResponse> findAllSummaries();
+
+	/** Historique complet des produits vendus, regroupable par vente (paniers). */
+	@Query("""
+			select new com.shopwise.app.sales.dto.response.SoldItem(s.id, s.saleDate, l.productId, l.quantity)
+			from Sale s join s.lines l
+			order by s.id, l.id
+			""")
+	List<com.shopwise.app.sales.dto.response.SoldItem> findAllSoldItems();
 }

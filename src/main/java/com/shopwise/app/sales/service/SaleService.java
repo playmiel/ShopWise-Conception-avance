@@ -5,6 +5,7 @@ import java.util.List;
 import com.shopwise.app.sales.dto.request.CreateSaleRequest;
 import com.shopwise.app.sales.dto.response.SaleResponse;
 import com.shopwise.app.sales.dto.response.SaleSummaryResponse;
+import com.shopwise.app.sales.dto.response.SoldItem;
 
 public interface SaleService {
 
@@ -16,4 +17,7 @@ public interface SaleService {
 
 	/** Detail d'une vente ; NotFoundException si elle n'existe pas (US 3). */
 	SaleResponse getById(Long id);
+
+	/** Historique des produits vendus (lecture seule), pour les modules d'analyse. */
+	List<SoldItem> getSoldItems();
 }

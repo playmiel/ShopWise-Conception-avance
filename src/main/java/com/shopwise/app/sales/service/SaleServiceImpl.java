@@ -18,6 +18,7 @@ import com.shopwise.app.sales.dto.request.CreateSaleRequest;
 import com.shopwise.app.sales.dto.request.SaleLineRequest;
 import com.shopwise.app.sales.dto.response.SaleResponse;
 import com.shopwise.app.sales.dto.response.SaleSummaryResponse;
+import com.shopwise.app.sales.dto.response.SoldItem;
 import com.shopwise.app.sales.entity.Sale;
 import com.shopwise.app.sales.mapper.SaleMapper;
 import com.shopwise.app.sales.repository.SaleRepository;
@@ -79,5 +80,11 @@ public class SaleServiceImpl implements SaleService {
 		return saleRepository.findWithLinesById(id)
 				.map(saleMapper::toResponse)
 				.orElseThrow(() -> new NotFoundException("Sale not found"));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<SoldItem> getSoldItems() {
+		return saleRepository.findAllSoldItems();
 	}
 }

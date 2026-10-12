@@ -73,6 +73,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/sales").hasAnyRole(ADMIN, MERCHANT)
 						// Ecriture sur le catalogue : administrateur uniquement
 						.requestMatchers("/api/products", "/api/products/**").hasRole(ADMIN)
+						// Reentrainement du modele de recommandation : administrateur uniquement
+						.requestMatchers(HttpMethod.POST, "/api/recommendations/**").hasRole(ADMIN)
 						// Tout le reste exige au minimum d'etre authentifie
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(oauth2 -> oauth2
